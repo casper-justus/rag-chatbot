@@ -1,0 +1,21 @@
+# Global owner — all files
+* @casper-justus
+
+# RAG core logic
+backend/rag.py @casper-justus
+backend/ingest.py @casper-justus
+
+# FastAPI server
+backend/main.py @casper-justus
+
+# Frontend
+frontend/ @casper-justus
+
+# Knowledge base documents
+data/ @casper-justus
+
+# Load tests
+load-tests/ @casper-justus
+
+# CI/CD & security workflows
+.github/workflows/ @casper-justus
