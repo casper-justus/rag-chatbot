@@ -1,5 +1,9 @@
 # RAG Knowledge Base Chatbot
 
+[![CI](https://github.com/casper-justus/rag-chatbot/actions/workflows/ci.yml/badge.svg)](https://github.com/casper-justus/rag-chatbot/actions/workflows/ci.yml)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 A retrieval-augmented generation (RAG) chatbot built with LangChain, Gemini API, and Chroma vector database. Answers questions grounded in your custom documents — no hallucinations, with source citations.
 
 ## Load-Tested Impact
@@ -181,3 +185,7 @@ After deploying the backend, edit `vercel.json` and replace `YOUR-RAILWAY-URL` w
   ]
 }
 ```
+
+## License
+
+MIT
