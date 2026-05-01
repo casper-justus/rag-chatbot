@@ -1,0 +1,38 @@
+Company Overview
+================
+
+Acme Corporation was founded in 2015 by Sarah Chen and Marcus Williams in San Francisco, California.
+The company specializes in building AI-powered developer tools that help engineering teams ship software faster.
+
+Mission Statement
+-----------------
+"Our mission is to eliminate the repetitive, frustrating parts of software development so engineers
+can focus on solving interesting problems and building products that matter."
+
+Core Values
+-----------
+1. Developer Experience First - Every product decision starts with the developer in mind
+2. Transparency - Open roadmaps, public changelogs, honest pricing
+3. Speed - We iterate fast and ship weekly
+4. Quality - Fast doesn't mean sloppy; we maintain rigorous testing standards
+
+Company Stats (2025)
+--------------------
+- 250+ employees across 12 countries
+- 50,000+ active developer users
+- Series B funded ($45M raised total)
+- Customers include Stripe, Vercel, Shopify, and Coinbase
+
+Office Locations
+----------------
+- San Francisco, CA (HQ)
+- London, UK
+- Tokyo, Japan
+- Remote-first for most engineering roles
+
+Leadership Team
+---------------
+- Sarah Chen - CEO & Co-founder (previously VP Engineering at GitHub)
+- Marcus Williams - CTO & Co-founder (previously senior staff engineer at Meta)
+- Priya Patel - VP of Product (previously PM lead at AWS)
+- James Rodriguez - VP of Engineering (previously engineering director at Datadog)

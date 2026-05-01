@@ -1,0 +1,4 @@
+locust>=2.31
+requests>=2.31
+matplotlib>=3.8
+tabulate>=0.9

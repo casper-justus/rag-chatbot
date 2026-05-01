@@ -1,0 +1,61 @@
+Support & Policies
+==================
+
+Customer Support
+----------------
+- Email: support@acmecorp.com (response within 4 hours for Pro, 1 hour for Enterprise)
+- Live Chat: Available 9am-6pm PST Monday-Friday via in-app widget
+- Community Forum: https://community.acmecorp.com
+- Status Page: https://status.acmecorp.com
+
+Support Tiers:
+- Free: Community forum access only
+- Pro: Email support, 4-hour response time
+- Enterprise: Dedicated Slack channel, 1-hour response time, assigned CSM
+
+Refund Policy
+-------------
+We offer a 30-day money-back guarantee on all paid plans. If you're not satisfied,
+contact billing@acmecorp.com within 30 days of purchase for a full refund.
+
+After 30 days, refunds are prorated based on remaining time in your billing cycle.
+
+Data Privacy & Security
+-----------------------
+- SOC 2 Type II certified
+- GDPR compliant
+- Data encrypted at rest (AES-256) and in transit (TLS 1.3)
+- No code or data is used to train AI models
+- Data retention: Deleted accounts are purged within 30 days
+- Data residency options: US, EU, and Asia-Pacific regions available for Enterprise
+
+Uptime SLA
+----------
+- Free tier: Best effort (no SLA)
+- Pro tier: 99.5% uptime SLA
+- Enterprise tier: 99.99% uptime SLA with financial credits for downtime
+
+Security Incidents:
+In the event of a security incident affecting customer data, we commit to:
+1. Notifying affected customers within 24 hours of confirmation
+2. Providing a detailed incident report within 72 hours
+3. Implementing remediation measures within 7 days
+
+Acceptable Use Policy
+---------------------
+Users may not:
+- Use our services to generate malicious code or exploits
+- Attempt to reverse-engineer our AI models
+- Exceed rate limits or abuse API endpoints
+- Share account credentials outside their organization
+- Use our services for spam or unsolicited communications
+
+Violations may result in immediate account suspension.
+
+Billing & Payments
+------------------
+- Accepted payment methods: Credit card (Visa, Mastercard, Amex), wire transfer (Enterprise)
+- Billing cycle: Monthly or annual (annual gets 20% discount)
+- Invoices available in dashboard under Settings > Billing
+- Late payments: 7-day grace period, then service suspension
+- Tax: Prices exclude applicable taxes; VAT/GST applied where required
