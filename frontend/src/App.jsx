@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const API_URL = import.meta.env.VITE_API_URL || "";
 
 function App() {
   const [messages, setMessages] = useState([
@@ -277,15 +277,6 @@ const styles = {
     display: "flex",
     gap: 6,
     padding: "4px 0",
-    "& span": {
-      width: 8,
-      height: 8,
-      background: "#555",
-      borderRadius: "50%",
-      animation: "pulse 1.4s infinite ease-in-out",
-    },
-    "& span:nth-child(1)": { animationDelay: "-0.32s" },
-    "& span:nth-child(2)": { animationDelay: "-0.16s" },
   },
   inputArea: {
     padding: "16px 24px 20px",
