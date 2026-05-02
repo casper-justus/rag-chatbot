@@ -1,0 +1,12 @@
+.git
+.github
+__pycache__
+*.pyc
+*.pyo
+.env
+.env.*
+!backend/.env.example
+frontend/node_modules
+frontend/.next
+nixpacks.toml
+load-tests/
