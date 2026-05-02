@@ -1,8 +1,16 @@
 [phases.setup]
-nixPkgs = ["python311", "python311Packages.pip"]
+nixPkgs = [
+  "python311",
+  "python311Packages.pip",
+  "stdenv.cc.cc.lib",
+  "gcc"
+]
+
+[phases.setup.env]
+LD_LIBRARY_PATH = "/nix/store/*-gcc*/lib:/nix/store/*-glibc*/lib"
 
 [phases.install]
-cmds = ["pip3 install --break-system-packages -r backend/requirements.txt"]
+cmds = ["pip3 install -r backend/requirements.txt"]
 
 [start]
 cmd = "cd backend && python3 ingest.py && uvicorn main:app --host 0.0.0.0 --port $PORT"
