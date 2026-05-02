@@ -1,9 +1,9 @@
 import os
 from dotenv import load_dotenv
-from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_chroma import Chroma
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.document_loaders import DirectoryLoader, TextLoader, PyPDFLoader
+from langchain_community.document_loaders import TextLoader, PyPDFLoader
 from pathlib import Path
 
 load_dotenv()
@@ -45,7 +45,10 @@ def split_documents(docs, chunk_size=1000, chunk_overlap=200):
 
 def create_vectorstore(chunks):
     """Create Chroma vectorstore from document chunks."""
-    embeddings = GoogleGenerativeAIEmbeddings(model="models/text-embedding-004")
+    embeddings = GoogleGenerativeAIEmbeddings(
+        model="text-embedding-004",
+        google_api_key=os.environ["GOOGLE_API_KEY"],
+    )
 
     vectorstore = Chroma.from_documents(
         documents=chunks,
