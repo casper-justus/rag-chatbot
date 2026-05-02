@@ -1,6 +1,3 @@
-[build]
-buildCommand = "pip3 install -r backend/requirements.txt && cd backend && python3 ingest.py"
-
 [deploy]
 startCommand = "cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT"
 restartPolicyType = "ON_FAILURE"
