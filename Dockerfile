@@ -1,6 +1,5 @@
 FROM python:3.11-slim
 
-# Install system deps needed by chromadb's C++ binaries
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
@@ -10,13 +9,12 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-# Copy and install Python dependencies
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend source and data
 COPY backend/ ./backend/
 COPY data/ ./data/
+COPY start.sh ./start.sh
+RUN chmod +x start.sh
 
-# Run ingest at startup, then serve
-CMD ["sh", "-c", "cd backend && python ingest.py && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+ENTRYPOINT ["/app/start.sh"]
