@@ -5,6 +5,8 @@ from langchain_chroma import Chroma
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import TextLoader, PyPDFLoader
 from pathlib import Path
+import chromadb
+from chromadb.config import Settings
 
 load_dotenv()
 
@@ -45,10 +47,14 @@ def create_vectorstore(chunks):
         model="models/gemini-embedding-001",
         google_api_key=api_key,
     )
+    client = chromadb.PersistentClient(
+        path=str(CHROMA_DIR),
+        settings=Settings(anonymized_telemetry=False),
+    )
     vectorstore = Chroma.from_documents(
         documents=chunks,
         embedding=embeddings,
-        persist_directory=str(CHROMA_DIR),
+        client=client,
     )
     print(f"Vectorstore created at {CHROMA_DIR}")
     return vectorstore

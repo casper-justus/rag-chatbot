@@ -4,6 +4,8 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGener
 from langchain_chroma import Chroma
 from langchain.chains import RetrievalQA
 from pathlib import Path
+import chromadb
+from chromadb.config import Settings
 
 load_dotenv()
 
@@ -16,12 +18,16 @@ def get_qa_chain():
         model="models/gemini-embedding-001",
         google_api_key=api_key,
     )
+    client = chromadb.PersistentClient(
+        path=str(CHROMA_DIR),
+        settings=Settings(anonymized_telemetry=False),
+    )
     vectorstore = Chroma(
-        persist_directory=str(CHROMA_DIR),
+        client=client,
         embedding_function=embeddings,
     )
     llm = ChatGoogleGenerativeAI(
-        model="gemini-1.5-flash",
+        model="gemini-2.0-flash",
         google_api_key=api_key,
         temperature=0.3,
     )
@@ -35,7 +41,6 @@ def get_qa_chain():
 
 
 def query(question: str) -> dict:
-    """Run a RAG query and return answer + sources."""
     chain = get_qa_chain()
     result = chain.invoke({"query": question})
     sources = [
