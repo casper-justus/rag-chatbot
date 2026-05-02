@@ -2,10 +2,7 @@
 nixPkgs = ["python311", "python311Packages.pip"]
 
 [phases.install]
-cmds = ["pip install -r backend/requirements.txt"]
-
-[phases.build]
-cmds = ["cd backend && python ingest.py"]
+cmds = ["pip3 install -r backend/requirements.txt"]
 
 [start]
-cmd = "cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT"
+cmd = "cd backend && python3 ingest.py && uvicorn main:app --host 0.0.0.0 --port $PORT"
