@@ -1,6 +1,5 @@
 import os
 from dotenv import load_dotenv
-import google.generativeai as genai
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_chroma import Chroma
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -10,7 +9,6 @@ from pathlib import Path
 load_dotenv()
 
 api_key = os.environ["GOOGLE_API_KEY"]
-genai.configure(api_key=api_key)
 
 DATA_DIR = Path(__file__).parent.parent / "data"
 CHROMA_DIR = Path(__file__).parent / "chroma_db"
@@ -44,7 +42,7 @@ def split_documents(docs, chunk_size=1000, chunk_overlap=200):
 
 def create_vectorstore(chunks):
     embeddings = GoogleGenerativeAIEmbeddings(
-        model="models/embedding-001",
+        model="models/gemini-embedding-001",
         google_api_key=api_key,
     )
     vectorstore = Chroma.from_documents(
