@@ -29,5 +29,23 @@ def get_qa_chain():
         llm=llm,
         chain_type="stuff",
         retriever=vectorstore.as_retriever(search_kwargs={"k": 4}),
+        return_source_documents=True,
     )
     return qa_chain
+
+
+def query(question: str) -> dict:
+    """Run a RAG query and return answer + sources."""
+    chain = get_qa_chain()
+    result = chain.invoke({"query": question})
+    sources = [
+        {
+            "source": doc.metadata.get("source", "unknown"),
+            "content": doc.page_content[:200],
+        }
+        for doc in result.get("source_documents", [])
+    ]
+    return {
+        "answer": result["result"],
+        "sources": sources,
+    }
