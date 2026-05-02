@@ -3,10 +3,5 @@
   "outputDirectory": "frontend/dist",
   "devCommand": "cd frontend && npm run dev",
   "installCommand": "cd frontend && npm install",
-  "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "https://web-production-1f50.up.railway.app:path*"
-    }
   ]
 }
