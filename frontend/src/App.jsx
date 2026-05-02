@@ -12,9 +12,16 @@ export default function App() {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [health, setHealth] = useState("checking"); // "checking" | "ok" | "error"
+  const [health, setHealth] = useState("checking");
   const [ingesting, setIngesting] = useState(false);
   const [ingestMsg, setIngestMsg] = useState(null);
+  const [focused, setFocused] = useState(false);
+
+  // Input history (like a terminal)
+  const historyRef = useRef([]);      // sent messages
+  const histIdxRef = useRef(-1);      // -1 = live input
+  const draftRef = useRef("");        // saves unsent draft when navigating
+
   const messagesEndRef = useRef(null);
 
   const checkHealth = useCallback(async () => {
@@ -28,8 +35,8 @@ export default function App() {
 
   useEffect(() => {
     checkHealth();
-    const interval = setInterval(checkHealth, 30000);
-    return () => clearInterval(interval);
+    const id = setInterval(checkHealth, 30000);
+    return () => clearInterval(id);
   }, [checkHealth]);
 
   useEffect(() => {
@@ -39,6 +46,10 @@ export default function App() {
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
     const userMessage = input.trim();
+    // Push to front of history, deduplicate
+    historyRef.current = [userMessage, ...historyRef.current.filter((m) => m !== userMessage)].slice(0, 50);
+    histIdxRef.current = -1;
+    draftRef.current = "";
     setInput("");
     setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
     setLoading(true);
@@ -50,15 +61,14 @@ export default function App() {
       });
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
       const data = await res.json();
-      let assistantMessage = data.answer;
+      let reply = data.answer;
       if (data.sources?.length > 0) {
-        assistantMessage += "\n\n---\n**Sources:**\n";
+        reply += "\n\n---\n**Sources:**\n";
         data.sources.forEach((src, i) => {
-          const name = src.source.split("/").pop();
-          assistantMessage += `\n${i + 1}. *${name}*: "${src.content}..."`;
+          reply += `\n${i + 1}. *${src.source.split("/").pop()}*: "${src.content}..."`;
         });
       }
-      setMessages((prev) => [...prev, { role: "assistant", content: assistantMessage }]);
+      setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
     } catch (err) {
       setMessages((prev) => [...prev, { role: "assistant", content: `⚠️ ${err.message}` }]);
     } finally {
@@ -72,7 +82,9 @@ export default function App() {
     try {
       const res = await fetch(`${API_URL}/api/ingest`, { method: "POST" });
       const data = await res.json();
-      setIngestMsg(res.ok ? { type: "ok", text: data.message || "Ingestion complete" } : { type: "err", text: data.detail || "Ingestion failed" });
+      setIngestMsg(res.ok
+        ? { type: "ok", text: data.message || "Ingestion complete" }
+        : { type: "err", text: data.detail || "Ingestion failed" });
     } catch (err) {
       setIngestMsg({ type: "err", text: err.message });
     } finally {
@@ -82,11 +94,35 @@ export default function App() {
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+    const history = historyRef.current;
+
+    if (e.key === "ArrowUp") {
+      if (history.length === 0) return;
+      e.preventDefault();
+      if (histIdxRef.current === -1) draftRef.current = input; // save draft
+      const next = Math.min(histIdxRef.current + 1, history.length - 1);
+      histIdxRef.current = next;
+      setInput(history[next]);
+      return;
+    }
+
+    if (e.key === "ArrowDown") {
+      if (histIdxRef.current === -1) return;
+      e.preventDefault();
+      const next = histIdxRef.current - 1;
+      histIdxRef.current = next;
+      setInput(next === -1 ? draftRef.current : history[next]);
+      return;
+    }
+
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
   };
 
-  const healthColor = { checking: "#888", ok: "#4ade80", error: "#f87171" }[health];
-  const healthLabel = { checking: "Checking…", ok: "Backend online", error: "Backend offline" }[health];
+  const healthColor = { checking: "#64748b", ok: "#4ade80", error: "#f87171" }[health];
+  const healthLabel = { checking: "Checking…", ok: "Online", error: "Offline" }[health];
 
   return (
     <div style={s.root}>
@@ -94,7 +130,7 @@ export default function App() {
       <header style={s.header}>
         <div style={s.headerLeft}>
           <div style={s.logo}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
             </svg>
           </div>
@@ -102,14 +138,15 @@ export default function App() {
           <span style={s.badge}>RAG · Gemini</span>
         </div>
         <div style={s.headerRight}>
-          {/* Health pill */}
           <div style={s.healthPill}>
             <span style={{ ...s.healthDot, background: healthColor }} />
-            <span style={{ ...s.healthText, color: healthColor }}>{healthLabel}</span>
+            <span style={{ fontSize: 11, fontWeight: 500, color: healthColor }}>{healthLabel}</span>
           </div>
-          {/* Re-ingest button */}
-          <button onClick={runIngest} disabled={ingesting} style={{ ...s.ingestBtn, ...(ingesting ? s.ingestBtnDisabled : {}) }} title="Re-run document ingestion">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+          <button onClick={runIngest} disabled={ingesting}
+            style={{ ...s.ingestBtn, ...(ingesting ? s.ingestBtnOff : {}) }}
+            title="Re-run document ingestion">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
               style={{ animation: ingesting ? "spin 1s linear infinite" : "none" }}>
               <polyline points="1 4 1 10 7 10" />
               <path d="M3.51 15a9 9 0 1 0 .49-4" />
@@ -119,7 +156,6 @@ export default function App() {
         </div>
       </header>
 
-      {/* Ingest toast */}
       {ingestMsg && (
         <div style={{ ...s.toast, background: ingestMsg.type === "ok" ? "#14532d" : "#450a0a", borderColor: ingestMsg.type === "ok" ? "#4ade80" : "#f87171" }}>
           {ingestMsg.type === "ok" ? "✓" : "✗"} {ingestMsg.text}
@@ -132,8 +168,9 @@ export default function App() {
           <div key={i} style={{ ...s.row, justifyContent: msg.role === "user" ? "flex-end" : "flex-start" }}>
             {msg.role === "assistant" && (
               <div style={s.avatar}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="3" /><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
                 </svg>
               </div>
             )}
@@ -156,11 +193,14 @@ export default function App() {
         {loading && (
           <div style={{ ...s.row, justifyContent: "flex-start" }}>
             <div style={s.avatar}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="3" /><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
               </svg>
             </div>
-            <div style={s.aiBubble}><div style={s.typing}><span /><span /><span /></div></div>
+            <div style={s.aiBubble}>
+              <div style={s.typing}><span /><span /><span /></div>
+            </div>
           </div>
         )}
         <div ref={messagesEndRef} />
@@ -168,29 +208,50 @@ export default function App() {
 
       {/* Input */}
       <div style={s.inputWrap}>
-        <div style={s.inputBox}>
-          <textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown}
-            placeholder="Ask anything about your knowledge base…" style={s.textarea} rows={1} />
-          <button onClick={sendMessage} disabled={loading || !input.trim()}
-            style={{ ...s.sendBtn, ...(loading || !input.trim() ? s.sendBtnOff : {}) }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
+        <div style={{ ...s.inputBox, ...(focused ? s.inputBoxFocused : {}) }}>
+          <textarea
+            value={input}
+            onChange={(e) => {
+              setInput(e.target.value);
+              histIdxRef.current = -1; // any manual edit resets history cursor
+            }}
+            onKeyDown={handleKeyDown}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            placeholder="Ask anything… (↑↓ for history)"
+            style={s.textarea}
+            rows={1}
+          />
+          <button
+            onClick={sendMessage}
+            disabled={loading || !input.trim()}
+            style={{
+              ...s.sendBtn,
+              ...(input.trim() && !loading ? s.sendBtnActive : s.sendBtnOff),
+            }}
+            title="Send (Enter)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13" />
+              <polygon points="22 2 15 22 11 13 2 9 22 2" />
             </svg>
           </button>
         </div>
-        <p style={s.hint}>Enter to send · Shift+Enter for new line</p>
+        <p style={s.hint}>↑↓ history · Enter send · Shift+Enter newline</p>
       </div>
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes blink {
-          0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+          0%, 80%, 100% { opacity: 0.15; transform: scale(0.75); }
           40% { opacity: 1; transform: scale(1); }
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background: #0f0f13; font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; }
-        ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        textarea::placeholder { color: #334155; }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
       `}</style>
     </div>
   );
@@ -198,30 +259,41 @@ export default function App() {
 
 const s = {
   root: { display: "flex", flexDirection: "column", height: "100vh", maxWidth: 860, margin: "0 auto", color: "#cbd5e1" },
-  header: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", borderBottom: "1px solid #1e293b", background: "#0f0f13", gap: 12 },
-  headerLeft: { display: "flex", alignItems: "center", gap: 10 },
-  headerRight: { display: "flex", alignItems: "center", gap: 10 },
-  logo: { width: 32, height: 32, borderRadius: 8, background: "#1e1b4b", display: "flex", alignItems: "center", justifyContent: "center" },
-  title: { fontSize: 15, fontWeight: 600, color: "#e2e8f0", letterSpacing: "-0.01em" },
-  badge: { fontSize: 11, fontWeight: 500, color: "#818cf8", background: "#1e1b4b", padding: "2px 8px", borderRadius: 20, border: "1px solid #312e81" },
-  healthPill: { display: "flex", alignItems: "center", gap: 6, background: "#0f172a", border: "1px solid #1e293b", borderRadius: 20, padding: "4px 10px" },
-  healthDot: { width: 7, height: 7, borderRadius: "50%", flexShrink: 0 },
-  healthText: { fontSize: 11, fontWeight: 500 },
-  ingestBtn: { display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 500, color: "#94a3b8", background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8, padding: "5px 12px", cursor: "pointer", transition: "all 0.15s" },
-  ingestBtnDisabled: { opacity: 0.5, cursor: "not-allowed" },
-  toast: { margin: "8px 20px 0", padding: "8px 14px", borderRadius: 8, border: "1px solid", fontSize: 13, fontWeight: 500 },
-  messages: { flex: 1, overflowY: "auto", padding: "24px 20px", display: "flex", flexDirection: "column", gap: 20 },
-  row: { display: "flex", alignItems: "flex-start", gap: 10, width: "100%" },
-  avatar: { width: 28, height: 28, borderRadius: 8, background: "#1e1b4b", border: "1px solid #312e81", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 },
-  bubble: { maxWidth: "78%", padding: "10px 14px", borderRadius: 12, fontSize: 14, lineHeight: 1.6 },
+
+  header: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 20px", borderBottom: "1px solid #1e293b", background: "#0f0f13" },
+  headerLeft: { display: "flex", alignItems: "center", gap: 9 },
+  headerRight: { display: "flex", alignItems: "center", gap: 8 },
+  logo: { width: 30, height: 30, borderRadius: 7, background: "#1e1b4b", display: "flex", alignItems: "center", justifyContent: "center" },
+  title: { fontSize: 14, fontWeight: 600, color: "#e2e8f0", letterSpacing: "-0.01em" },
+  badge: { fontSize: 10, fontWeight: 500, color: "#818cf8", background: "#1e1b4b", padding: "2px 7px", borderRadius: 20, border: "1px solid #312e81" },
+
+  healthPill: { display: "flex", alignItems: "center", gap: 5, padding: "3px 9px", borderRadius: 20, background: "#0f172a", border: "1px solid #1e293b" },
+  healthDot: { width: 6, height: 6, borderRadius: "50%" },
+
+  ingestBtn: { display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 500, color: "#64748b", background: "transparent", border: "1px solid #1e293b", borderRadius: 7, padding: "4px 10px", cursor: "pointer", transition: "color 0.15s, border-color 0.15s" },
+  ingestBtnOff: { opacity: 0.45, cursor: "not-allowed" },
+
+  toast: { margin: "6px 20px 0", padding: "7px 13px", borderRadius: 7, border: "1px solid", fontSize: 12, fontWeight: 500 },
+
+  messages: { flex: 1, overflowY: "auto", padding: "22px 20px", display: "flex", flexDirection: "column", gap: 18 },
+  row: { display: "flex", alignItems: "flex-start", gap: 9, width: "100%" },
+  avatar: { width: 26, height: 26, borderRadius: 7, background: "#1e1b4b", border: "1px solid #312e81", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 },
+  bubble: { maxWidth: "78%", padding: "9px 13px", borderRadius: 11, fontSize: 14, lineHeight: 1.6 },
   userBubble: { background: "linear-gradient(135deg, #3730a3, #4f46e5)", color: "#fff", borderBottomRightRadius: 3, marginLeft: "auto" },
   aiBubble: { background: "#131929", color: "#cbd5e1", borderBottomLeftRadius: 3, border: "1px solid #1e293b" },
-  code: { background: "#0f172a", color: "#a5f3fc", padding: "1px 6px", borderRadius: 4, fontFamily: "'JetBrains Mono', monospace", fontSize: 12, border: "1px solid #1e293b" },
-  typing: { display: "flex", gap: 5, padding: "4px 2px", alignItems: "center" },
-  inputWrap: { padding: "12px 20px 18px", borderTop: "1px solid #1e293b", background: "#0f0f13" },
-  inputBox: { display: "flex", gap: 10, alignItems: "flex-end", background: "#131929", borderRadius: 14, padding: "10px 10px 10px 14px", border: "1px solid #1e293b" },
-  textarea: { flex: 1, background: "transparent", border: "none", outline: "none", color: "#e2e8f0", fontSize: 14, resize: "none", fontFamily: "inherit", lineHeight: 1.5, maxHeight: 120 },
-  sendBtn: { background: "linear-gradient(135deg, #3730a3, #4f46e5)", border: "none", borderRadius: 9, width: 38, height: 38, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#fff", flexShrink: 0 },
-  sendBtnOff: { background: "#1e293b", cursor: "not-allowed", color: "#475569" },
-  hint: { textAlign: "center", color: "#334155", fontSize: 11, marginTop: 7 },
+  code: { background: "#0f172a", color: "#a5f3fc", padding: "1px 5px", borderRadius: 4, fontFamily: "'JetBrains Mono', monospace", fontSize: 12, border: "1px solid #1e293b" },
+  typing: { display: "flex", gap: 4, padding: "3px 1px", alignItems: "center" },
+
+  // Minimal input
+  inputWrap: { padding: "10px 20px 16px", borderTop: "1px solid #1e293b", background: "#0f0f13" },
+  inputBox: { display: "flex", alignItems: "flex-end", gap: 6, borderBottom: "1px solid #1e293b", paddingBottom: 6, transition: "border-color 0.15s" },
+  inputBoxFocused: { borderColor: "#312e81" },
+  textarea: { flex: 1, background: "transparent", border: "none", outline: "none", color: "#e2e8f0", fontSize: 14, resize: "none", fontFamily: "inherit", lineHeight: 1.5, maxHeight: 120, paddingBottom: 2 },
+
+  // Ghost send button — just the icon, minimal
+  sendBtn: { background: "transparent", border: "none", padding: "4px 6px", borderRadius: 6, cursor: "pointer", transition: "color 0.15s", flexShrink: 0, lineHeight: 0 },
+  sendBtnActive: { color: "#818cf8" },
+  sendBtnOff: { color: "#1e293b", cursor: "not-allowed" },
+
+  hint: { textAlign: "center", color: "#1e293b", fontSize: 10, marginTop: 6, letterSpacing: "0.02em" },
 };
