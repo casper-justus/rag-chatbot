@@ -4,6 +4,8 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
+**🚀 Live Demo → [rag-chatbot-two-delta.vercel.app](https://rag-chatbot-two-delta.vercel.app)**
+
 A retrieval-augmented generation (RAG) chatbot built with LangChain, Gemini API, and Chroma vector database. Answers questions grounded in your custom documents — no hallucinations, with source citations.
 
 ## Load-Tested Impact
@@ -156,12 +158,7 @@ The ingestion pipeline will:
 
 1. Create a new project on [Vercel](https://vercel.com)
 2. Connect your repo, set root directory to `/`
-3. Add environment variable: `VITE_API_URL` = your Railway backend URL
-4. Deploy
-
-### Update Vercel rewrites
-
-After deploying the backend, edit `vercel.json` and replace `YOUR-RAILWAY-URL` with your actual Railway URL, or set `VITE_API_URL` and update the frontend's API calls accordingly.
+3. Deploy — the `vercel.json` rewrites proxy `/api/*` to Railway automatically
 
 ## API Endpoints
 
@@ -182,7 +179,8 @@ After deploying the backend, edit `vercel.json` and replace `YOUR-RAILWAY-URL` w
   "answer": "We offer a 30-day money-back guarantee...",
   "sources": [
     { "content": "...", "source": "support_policies.txt" }
-  ]
+  ],
+  "cached": false
 }
 ```
 
