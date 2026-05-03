@@ -1,4 +1,4 @@
-fastapi>=0.121.3
+fastapi>=0.136.1
 uvicorn==0.34.0
 langchain==0.3.27
 langchain-community==0.3.27
