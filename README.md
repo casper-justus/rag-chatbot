@@ -101,15 +101,15 @@ python3 self_benchmark.py -u 50 -n 200   # stress test
 ```
 rag-chatbot/
 ├── backend/
-│   ├── main.py              # FastAPI server with chat + ingest endpoints
-│   ├── rag.py               # LangChain RAG chain (retrieval + generation)
+│   ├── main.py              # FastAPI server — rate limiting, caching, routes
+│   ├── rag.py               # LangChain RAG chain with Gemini 429 backoff
 │   ├── ingest.py            # Document loading, chunking, and embedding
 │   ├── requirements.txt     # Python dependencies
 │   ├── .env.example         # Environment variable template
 │   └── chroma_db/           # Persisted vector store (created on ingest)
 ├── frontend/
 │   ├── src/
-│   │   ├── App.jsx          # React chat UI component
+│   │   ├── App.jsx          # React chat UI
 │   │   └── main.jsx         # React entry point
 │   ├── index.html
 │   ├── package.json
@@ -118,16 +118,23 @@ rag-chatbot/
 │   ├── company_info.txt
 │   ├── products.txt
 │   └── support_policies.txt
-├── load-tests/              # Benchmark and load testing
-│   ├── self_benchmark.py    # Self-contained benchmark (no deps needed)
-│   ├── benchmark.py         # Benchmark against external server
-│   ├── locustfile.py        # Locust load test with web UI
-│   ├── mock_server.py       # Mock API for load testing
-│   └── requirements.txt     # Load test dependencies
-├── vercel.json              # Vercel deployment config
-├── Procfile                 # Railway process config
-└── railway.toml             # Railway build/start config
+├── load-tests/
+├── vercel.json              # Vercel deployment + /api/* rewrite proxy
+├── Procfile
+└── railway.toml
 ```
+
+## Environment Variables
+
+Set these in the **Railway Variables** tab or in your local `.env` file.
+
+| Variable | Required | Description | Example |
+|---|---|---|---|
+| `GOOGLE_API_KEY` | ✅ | Gemini API key. Get one from [Google AI Studio](https://aistudio.google.com/app/apikey). | `AIza...` |
+| `PORT` | ✅ | Port the server listens on. Railway injects this automatically. | `8000` |
+| `CHROMA_DIR` | Optional | Override path for persisted Chroma vector store. Defaults to `./chroma_db`. | `/data/chroma_db` |
+
+> **Note:** There is no database or JWT auth in this project — it is a stateless RAG API. The only secret you need is `GOOGLE_API_KEY`.
 
 ## Adding Your Own Documents
 
@@ -150,23 +157,24 @@ The ingestion pipeline will:
 1. Push your repo to GitHub
 2. Create a new project on [Railway](https://railway.app)
 3. Connect your repo — Railway auto-detects the Python app
-4. Add environment variable: `GOOGLE_API_KEY` with your Gemini API key
-5. Deploy — Railway runs `ingest.py` then starts the FastAPI server
-6. Copy the public URL (e.g. `https://your-app.railway.app`)
+4. Set environment variable `GOOGLE_API_KEY` in the **Variables** tab
+5. Deploy — Railway starts the FastAPI server via the `Procfile`
+6. Copy the public Railway URL
 
 ### Vercel (Frontend)
 
 1. Create a new project on [Vercel](https://vercel.com)
 2. Connect your repo, set root directory to `/`
-3. Deploy — the `vercel.json` rewrites proxy `/api/*` to Railway automatically
+3. Deploy — `vercel.json` automatically proxies `/api/*` to your Railway backend
+4. No extra environment variables needed in Vercel
 
 ## API Endpoints
 
-| Method | Endpoint       | Description                    |
-|--------|---------------|--------------------------------|
-| POST   | `/api/chat`   | Send a question, get an answer |
-| POST   | `/api/ingest` | Re-run document ingestion      |
-| GET    | `/api/health` | Health check                   |
+| Method | Endpoint       | Description                          |
+|--------|---------------|--------------------------------------|
+| POST   | `/api/chat`   | Send a question, get an answer (5/min per IP) |
+| POST   | `/api/ingest` | Re-run document ingestion            |
+| GET    | `/api/health` | Health check + cache stats           |
 
 ### Chat Request/Response
 

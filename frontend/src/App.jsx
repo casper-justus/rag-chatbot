@@ -16,12 +16,12 @@ export default function App() {
   const [ingesting, setIngesting] = useState(false);
   const [ingestMsg, setIngestMsg] = useState(null);
   const [focused, setFocused] = useState(false);
+  const [rateLimited, setRateLimited] = useState(false);
+  const rateLimitTimer = useRef(null);
 
-  // Input history (like a terminal)
-  const historyRef = useRef([]);      // sent messages
-  const histIdxRef = useRef(-1);      // -1 = live input
-  const draftRef = useRef("");        // saves unsent draft when navigating
-
+  const historyRef = useRef([]);
+  const histIdxRef = useRef(-1);
+  const draftRef = useRef("");
   const messagesEndRef = useRef(null);
 
   const checkHealth = useCallback(async () => {
@@ -43,10 +43,12 @@ export default function App() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Clean up rate limit timer on unmount
+  useEffect(() => () => clearTimeout(rateLimitTimer.current), []);
+
   const sendMessage = async () => {
-    if (!input.trim() || loading) return;
+    if (!input.trim() || loading || rateLimited) return;
     const userMessage = input.trim();
-    // Push to front of history, deduplicate
     historyRef.current = [userMessage, ...historyRef.current.filter((m) => m !== userMessage)].slice(0, 50);
     histIdxRef.current = -1;
     draftRef.current = "";
@@ -59,6 +61,21 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: userMessage }),
       });
+
+      // Handle rate limiting explicitly
+      if (res.status === 429) {
+        setRateLimited(true);
+        rateLimitTimer.current = setTimeout(() => setRateLimited(false), 60000);
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: "__rate_limited__",
+          },
+        ]);
+        return;
+      }
+
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
       const data = await res.json();
       let reply = data.answer;
@@ -95,17 +112,15 @@ export default function App() {
 
   const handleKeyDown = (e) => {
     const history = historyRef.current;
-
     if (e.key === "ArrowUp") {
-      if (history.length === 0) return;
+      if (!history.length) return;
       e.preventDefault();
-      if (histIdxRef.current === -1) draftRef.current = input; // save draft
+      if (histIdxRef.current === -1) draftRef.current = input;
       const next = Math.min(histIdxRef.current + 1, history.length - 1);
       histIdxRef.current = next;
       setInput(history[next]);
       return;
     }
-
     if (e.key === "ArrowDown") {
       if (histIdxRef.current === -1) return;
       e.preventDefault();
@@ -114,7 +129,6 @@ export default function App() {
       setInput(next === -1 ? draftRef.current : history[next]);
       return;
     }
-
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
@@ -123,10 +137,10 @@ export default function App() {
 
   const healthColor = { checking: "#64748b", ok: "#4ade80", error: "#f87171" }[health];
   const healthLabel = { checking: "Checking…", ok: "Online", error: "Offline" }[health];
+  const sendDisabled = loading || !input.trim() || rateLimited;
 
   return (
     <div style={s.root}>
-      {/* Header */}
       <header style={s.header}>
         <div style={s.headerLeft}>
           <div style={s.logo}>
@@ -162,7 +176,18 @@ export default function App() {
         </div>
       )}
 
-      {/* Messages */}
+      {/* Rate limit banner */}
+      {rateLimited && (
+        <div style={s.rateBanner}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          API quota reached — you can send again in about 1 minute.
+        </div>
+      )}
+
       <div style={s.messages}>
         {messages.map((msg, i) => (
           <div key={i} style={{ ...s.row, justifyContent: msg.role === "user" ? "flex-end" : "flex-start" }}>
@@ -175,7 +200,19 @@ export default function App() {
               </div>
             )}
             <div style={{ ...s.bubble, ...(msg.role === "user" ? s.userBubble : s.aiBubble) }}>
-              {msg.role === "assistant" ? (
+              {msg.role === "assistant" && msg.content === "__rate_limited__" ? (
+                <div style={s.rateLimitBubble}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fb923c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                  <span>
+                    <strong style={{ color: "#fb923c" }}>Rate limit reached.</strong>{" "}
+                    The Gemini API quota has been hit. Please wait about a minute before sending another message.
+                  </span>
+                </div>
+              ) : msg.role === "assistant" ? (
                 <ReactMarkdown components={{
                   p: ({ children }) => <p style={{ margin: "0 0 8px", lineHeight: 1.65 }}>{children}</p>,
                   strong: ({ children }) => <strong style={{ color: "#e2e8f0" }}>{children}</strong>,
@@ -206,29 +243,23 @@ export default function App() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
       <div style={s.inputWrap}>
-        <div style={{ ...s.inputBox, ...(focused ? s.inputBoxFocused : {}) }}>
+        <div style={{ ...s.inputBox, ...(focused ? s.inputBoxFocused : {}), ...(rateLimited ? s.inputBoxLimited : {}) }}>
           <textarea
             value={input}
-            onChange={(e) => {
-              setInput(e.target.value);
-              histIdxRef.current = -1; // any manual edit resets history cursor
-            }}
+            onChange={(e) => { setInput(e.target.value); histIdxRef.current = -1; }}
             onKeyDown={handleKeyDown}
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
-            placeholder="Ask anything… (↑↓ for history)"
+            placeholder={rateLimited ? "Quota reached — please wait a moment…" : "Ask anything… (↑↓ for history)"}
             style={s.textarea}
+            disabled={rateLimited}
             rows={1}
           />
           <button
             onClick={sendMessage}
-            disabled={loading || !input.trim()}
-            style={{
-              ...s.sendBtn,
-              ...(input.trim() && !loading ? s.sendBtnActive : s.sendBtnOff),
-            }}
+            disabled={sendDisabled}
+            style={{ ...s.sendBtn, ...(input.trim() && !loading && !rateLimited ? s.sendBtnActive : s.sendBtnOff) }}
             title="Send (Enter)">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -249,6 +280,7 @@ export default function App() {
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background: #0f0f13; font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; }
         textarea::placeholder { color: #334155; }
+        textarea:disabled { cursor: not-allowed; }
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
@@ -275,6 +307,9 @@ const s = {
 
   toast: { margin: "6px 20px 0", padding: "7px 13px", borderRadius: 7, border: "1px solid", fontSize: 12, fontWeight: 500 },
 
+  // Rate limit banner under header
+  rateBanner: { display: "flex", alignItems: "center", gap: 8, margin: "6px 20px 0", padding: "7px 13px", borderRadius: 7, background: "#431407", border: "1px solid #c2410c", fontSize: 12, fontWeight: 500, color: "#fb923c" },
+
   messages: { flex: 1, overflowY: "auto", padding: "22px 20px", display: "flex", flexDirection: "column", gap: 18 },
   row: { display: "flex", alignItems: "flex-start", gap: 9, width: "100%" },
   avatar: { width: 26, height: 26, borderRadius: 7, background: "#1e1b4b", border: "1px solid #312e81", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 },
@@ -284,13 +319,15 @@ const s = {
   code: { background: "#0f172a", color: "#a5f3fc", padding: "1px 5px", borderRadius: 4, fontFamily: "'JetBrains Mono', monospace", fontSize: 12, border: "1px solid #1e293b" },
   typing: { display: "flex", gap: 4, padding: "3px 1px", alignItems: "center" },
 
-  // Minimal input
+  // Rate limit message bubble
+  rateLimitBubble: { display: "flex", alignItems: "flex-start", gap: 9, color: "#94a3b8", fontSize: 13, lineHeight: 1.55 },
+
   inputWrap: { padding: "10px 20px 16px", borderTop: "1px solid #1e293b", background: "#0f0f13" },
   inputBox: { display: "flex", alignItems: "flex-end", gap: 6, borderBottom: "1px solid #1e293b", paddingBottom: 6, transition: "border-color 0.15s" },
   inputBoxFocused: { borderColor: "#312e81" },
+  inputBoxLimited: { borderColor: "#7c2d12", opacity: 0.6 },
   textarea: { flex: 1, background: "transparent", border: "none", outline: "none", color: "#e2e8f0", fontSize: 14, resize: "none", fontFamily: "inherit", lineHeight: 1.5, maxHeight: 120, paddingBottom: 2 },
 
-  // Ghost send button — just the icon, minimal
   sendBtn: { background: "transparent", border: "none", padding: "4px 6px", borderRadius: 6, cursor: "pointer", transition: "color 0.15s", flexShrink: 0, lineHeight: 0 },
   sendBtnActive: { color: "#818cf8" },
   sendBtnOff: { color: "#1e293b", cursor: "not-allowed" },
