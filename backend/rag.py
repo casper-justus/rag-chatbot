@@ -2,8 +2,8 @@ import os
 import time
 from dotenv import load_dotenv
 from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
-from langchain_chroma import Chroma
-from langchain.chains import RetrievalQA
+from langchain_community.vectorstores import Chroma
+from langchain_classic.chains import RetrievalQA
 from pathlib import Path
 import chromadb
 from chromadb.config import Settings
