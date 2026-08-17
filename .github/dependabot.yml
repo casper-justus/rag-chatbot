@@ -4,8 +4,8 @@ updates:
   - package-ecosystem: "pip"
     directory: "/backend"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "daily"
+    rebase-strategy: "auto"
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
@@ -24,8 +24,8 @@ updates:
   - package-ecosystem: "npm"
     directory: "/frontend"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "daily"
+    rebase-strategy: "auto"
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
@@ -35,8 +35,8 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "daily"
+    rebase-strategy: "auto"
     labels:
       - "dependencies"
       - "github-actions"

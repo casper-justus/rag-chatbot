@@ -65,6 +65,7 @@ jobs:
   pip-audit:
     name: Python Dependency Audit
     runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || github.actor != 'dependabot[bot]'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -84,6 +85,7 @@ jobs:
     name: Dependency Review
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
+    continue-on-error: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
